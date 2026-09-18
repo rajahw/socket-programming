@@ -1,0 +1,2 @@
+# Gen AI Disclosure
+I mainly used Claude Sonnet 5 to fill in gaps with my understanding. Claude Code is integrated with my IDE, so it was mostly "Clarify lines 1-2 on @file-name". For example, I was unsure why echo_server.py did not display a "disconnected: " message when I closed terminal 2. After receiving guidance, I wrote the solutions on my own.
