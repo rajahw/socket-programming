@@ -17,6 +17,7 @@ class User:
         self.addr = addr
         self.nickname = None
         self.buffer = b''
+        self.active = True
  
     def send_line(self, text):
         data = (text + '\n').encode('utf-8', errors='replace')
@@ -32,7 +33,7 @@ class User:
         self.send_line('OK ' + str(verb) + ' SUCCESS')
 
 def ingest_lines(user):
-    while True:
+    while user.active:
         chunk = user.conn.recv(4096)
         if not chunk:
             break
@@ -97,12 +98,12 @@ def handle_pm(args, user):
         user.send_error(101)
         return
 
-    if not args[0] == 'name': # Make this a check if the name is in user list (Server side)
-        user.send_error(104)
-        return
-
     if user.nickname is None:
         user.send_error(103)
+        return
+
+    if not args[0] == 'name': # Make this a check if the name is in user list (Server side)
+        user.send_error(104)
         return
 
     text = ' '.join(args[1:])
@@ -128,10 +129,10 @@ def handle_quit(args, user):
         return
 
     if user.nickname is None:
-            user.send_error(103)
-            return
+        user.send_error(103)
+        return
 
-    print('quit') #disconnect from server
+    user.active = False
 
     user.send_success('QUIT')
 
@@ -153,7 +154,7 @@ def main():
         print('connected:', addr)
         try:
             ingest_lines(user)
-        except (ConnectionResetError):
+        except (OSError):
             pass
         finally:
             print('disconnected:', addr)
