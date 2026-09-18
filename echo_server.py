@@ -18,6 +18,8 @@ while True:
             if not data:
                 break
             conn.sendall(data.upper())
+    except (ConnectionResetError):
+        pass
     finally:
         print("disconnected:", addr)
         conn.close()
