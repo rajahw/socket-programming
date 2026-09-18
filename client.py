@@ -38,6 +38,14 @@ class User:
     def send_success(self, verb):
         self.send_line(f'OK {verb} SUCCESS')
 
+def broadcast(text, exclude=None):
+    with users_lock:
+        recipients = list(users.values())
+
+    for r in recipients:
+        if r is not exclude:
+            r.send_line(text)
+
 def ingest_lines(user):
     while user.active:
         chunk = user.conn.recv(4096)
@@ -94,6 +102,8 @@ def handle_nick(args, user):
 
         users[user.nickname] = user
 
+    broadcast(f'INFO {user.nickname} joined. ({len(users)} online)')
+
     user.send_success('NICK')
 
 def handle_msg(args, user):
@@ -103,12 +113,7 @@ def handle_msg(args, user):
 
     text = ' '.join(args)
 
-    with users_lock:
-        recipients = list(users.values())
-
-    for r in recipients:
-        if r is not user:
-            r.send_line(f'MSG {user.nickname} {text}')
+    broadcast(f'MSG {user.nickname} {text}', exclude=user)
 
     user.send_success('MSG')
 
@@ -121,11 +126,20 @@ def handle_pm(args, user):
         user.send_error(103)
         return
 
-    if not args[0] == 'name': # Make this a check if the name is in user list (Server side)
+    if args[0] == user.nickname:
+        user.send_error(101)
+        return
+
+    with users_lock:
+        target = users.get(args[0])
+
+    if target is None:
         user.send_error(104)
         return
 
     text = ' '.join(args[1:])
+
+    target.send_line(f'PM {user.nickname} {text}')
 
     user.send_success('PM')
 
@@ -138,9 +152,12 @@ def handle_who(args, user):
         user.send_error(103)
         return
 
-    user_list = ' '.join(users)
+    with users_lock:
+        nicknames = list(users)
 
-    user.send_line(f'USERS {len(users)} {user_list}')
+    user_list = ' '.join(nicknames)
+
+    user.send_line(f'USERS {len(nicknames)} {user_list}')
 
     user.send_success('WHO')
 
@@ -153,6 +170,9 @@ def handle_quit(args, user):
         user.send_error(103)
         return
 
+    with users_lock:
+        users.pop(user.nickname, None)
+
     user.send_success('QUIT')
 
     user.active = False
@@ -164,6 +184,10 @@ def serve_user(conn, addr):
     except Exception:
         pass
     finally:
+        if user.nickname:
+            with users_lock:
+                broadcast(f'INFO {user.nickname} left. ({len(users) -1} online)')
+                users.pop(user.nickname, None)
         conn.close()
 
 def main():
