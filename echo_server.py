@@ -12,9 +12,12 @@ print('Socket listening on host', host, 'and port', port)
 while True:
     conn, addr = sock.accept()
     print("connected:", addr)
-    while conn:
-        data = conn.recv(512)
-        if not data:
-            break
-        conn.sendall(data.upper())
-    print("disconnected:", addr)
+    try:
+        while conn:
+            data = conn.recv(512)
+            if not data:
+                break
+            conn.sendall(data.upper())
+    finally:
+        print("disconnected:", addr)
+        conn.close()
