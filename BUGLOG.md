@@ -39,3 +39,18 @@ No multithreading for individual or multiple users
 Give each user their own thread
 ### How I found it
 Referencing the provided starter_server.py file and the helper document
+
+# client.py
+## MSG ... ends the netcat session instead of sending a message
+### Cause
+users was a list of user names instead of a dict of users, which isn't an accepted parameter type for send_line
+### Fix
+Change users to a dict and a threading lock to prevent duplicates in the dict
+### How I found it
+The error logs showed the following:
+```
+line 107, in handle_msg
+    u.send_line(f'MSG {user.nickname} {text}')
+    ^^^^^^^^^^^
+AttributeError: 'str' object has no attribute 'send_line'
+```

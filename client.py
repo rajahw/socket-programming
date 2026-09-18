@@ -12,7 +12,7 @@ ERRORS = {
     105: 'Line exceeds 512 bytes'
 }
 
-users = []
+users = {}
 users_lock = threading.Lock()
 
 class User:
@@ -33,10 +33,10 @@ class User:
                 pass
  
     def send_error(self, code):
-        self.send_line('ERR ' + str(code) + ' ' + str(ERRORS[code]))
+        self.send_line(f'ERR {code} {ERRORS[code]}')
 
     def send_success(self, verb):
-        self.send_line('OK ' + str(verb) + ' SUCCESS')
+        self.send_line(f'OK {verb} SUCCESS')
 
 def ingest_lines(user):
     while user.active:
@@ -85,13 +85,14 @@ def handle_nick(args, user):
         user.send_error(101)
         return
 
-    if args[0] in users:
-        user.send_error(102)
-        return
+    with users_lock:
+        if args[0] in users:
+            user.send_error(102)
+            return
 
-    user.nickname = args[0]
+        user.nickname = args[0]
 
-    users.append(user.nickname)
+        users[user.nickname] = user
 
     user.send_success('NICK')
 
@@ -101,6 +102,13 @@ def handle_msg(args, user):
         return
 
     text = ' '.join(args)
+
+    with users_lock:
+        recipients = list(users.values())
+
+    for r in recipients:
+        if r is not user:
+            r.send_line(f'MSG {user.nickname} {text}')
 
     user.send_success('MSG')
 
@@ -132,7 +140,7 @@ def handle_who(args, user):
 
     user_list = ' '.join(users)
 
-    user.send_line('USERS ' + str(len(users)) + ' ' + user_list)
+    user.send_line(f'USERS {len(users)} {user_list}')
 
     user.send_success('WHO')
 
@@ -149,11 +157,11 @@ def handle_quit(args, user):
 
     user.active = False
 
-def serve_client(conn, addr):
+def serve_user(conn, addr):
     user = User(conn, addr)
     try:
         ingest_lines(user)
-    except OSError:
+    except Exception:
         pass
     finally:
         conn.close()
@@ -172,9 +180,8 @@ def main():
     try:
         while True:
             conn, addr = sock.accept()
-            user = User(conn, addr)
-            threading.Thread(target=serve_client, args=(conn, addr), daemon=True).start()
-    except (KeyboardInterrupt):
+            threading.Thread(target=serve_user, args=(conn, addr), daemon=True).start()
+    except KeyboardInterrupt:
         pass
     finally:
         sock.close()
