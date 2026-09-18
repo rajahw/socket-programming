@@ -57,6 +57,8 @@ class Client():
                     self.handle_who(args)
                 case 'QUIT':
                     self.handle_quit(args)
+                case _:
+                    self.print_error(100)
         else:
             self.print_error(100)
 
