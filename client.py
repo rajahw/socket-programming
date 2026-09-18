@@ -12,7 +12,7 @@ ERRORS = {
     105: 'Line exceeds 512 bytes'
 }
 
-users = {}
+users = []
 users_lock = threading.Lock()
 
 class User:
@@ -85,11 +85,13 @@ def handle_nick(args, user):
         user.send_error(101)
         return
 
-    if args[0] == 'name': # Make this a check if the name is in user list (Server side)
+    if args[0] in users:
         user.send_error(102)
         return
 
     user.nickname = args[0]
+
+    users.append(user.nickname)
 
     user.send_success('NICK')
 
@@ -128,7 +130,9 @@ def handle_who(args, user):
         user.send_error(103)
         return
 
-    print('users') # print user list (Server side)
+    user_list = ' '.join(users)
+
+    user.send_line('USERS ' + str(len(users)) + ' ' + user_list)
 
     user.send_success('WHO')
 
