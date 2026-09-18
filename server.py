@@ -28,18 +28,18 @@ class User:
     def send_error(self, code):
         self.send_line('ERR ' + str(code) + ' ' + str(ERRORS[code]))
 
-def ingest_lines(conn):
+def ingest_lines(user):
     while True:
-        chunk = conn.recv(4096)
+        chunk = user.conn.recv(4096)
         if not chunk:
             break
-        buffer += chunk
+        user.buffer += chunk
         
-        while b'\n' in buffer:
-            raw, buffer = buffer.split(b'\n', 1)
+        while b'\n' in user.buffer:
+            raw, user.buffer = user.buffer.split(b'\n', 1)
             line = raw.rstrip(b'\r').decode('utf-8', errors='replace').strip()
             if line:
-                handle_line(line)
+                user.handle_line(line)
 
 def handle_line(line, user):
     if len(line.encode('utf-8')) > 512:
@@ -53,15 +53,15 @@ def handle_line(line, user):
 
         match verb:
             case 'NICK':
-                handle_nick(args)
+                handle_nick(args, user)
             case 'MSG':
-                handle_msg(args)
+                handle_msg(args, user)
             case 'PM':
-                handle_pm(args)
+                handle_pm(args, user)
             case 'WHO':
-                handle_who(args)
+                handle_who(args, user)
             case 'QUIT':
-                handle_quit(args)
+                handle_quit(args, user)
             case _:
                 user.send_error(100)
     else:
