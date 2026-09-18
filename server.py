@@ -28,6 +28,9 @@ class User:
     def send_error(self, code):
         self.send_line('ERR ' + str(code) + ' ' + str(ERRORS[code]))
 
+    def send_success(self, verb):
+        self.send_line('OK ' + str(verb) + ' SUCCESS')
+
 def ingest_lines(user):
     while True:
         chunk = user.conn.recv(4096)
@@ -78,12 +81,16 @@ def handle_nick(args, user):
 
     user.nickname = args[0]
 
+    user.send_success('NICK')
+
 def handle_msg(args, user):
     if user.nickname is None:
         user.send_error(103)
         return
 
     text = ' '.join(args)
+
+    user.send_success('MSG')
 
 def handle_pm(args, user):
     if not len(args) > 1:
@@ -100,6 +107,8 @@ def handle_pm(args, user):
 
     text = ' '.join(args[1:])
 
+    user.send_success('PM')
+
 def handle_who(args, user):
     if not len(args) == 0:
         user.send_error(101)
@@ -111,6 +120,8 @@ def handle_who(args, user):
 
     print('users') # print user list (Server side)
 
+    user.send_success('WHO')
+
 def handle_quit(args, user):
     if not len(args) == 0:
         user.send_error(101)
@@ -121,6 +132,8 @@ def handle_quit(args, user):
             return
 
     print('quit') #disconnect from server
+
+    user.send_success('QUIT')
 
 
 def main():
