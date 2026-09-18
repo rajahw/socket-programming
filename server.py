@@ -1,6 +1,7 @@
 import socket
 import argparse
 import re
+import threading
 
 ERRORS = {
     100: 'Unknown command',
@@ -11,6 +12,9 @@ ERRORS = {
     105: 'Line exceeds 512 bytes'
 }
 
+users = {}
+users_lock = threading.Lock()
+
 class User:
     def __init__(self, conn, addr):
         self.conn = conn
@@ -18,13 +22,15 @@ class User:
         self.nickname = None
         self.buffer = b''
         self.active = True
+        self.send_lock = threading.Lock()
  
     def send_line(self, text):
         data = (text + '\n').encode('utf-8', errors='replace')
-        try:
-            self.conn.sendall(data)
-        except OSError:
-            pass
+        with self.send_lock:
+            try:
+                self.conn.sendall(data)
+            except OSError:
+                pass
  
     def send_error(self, code):
         self.send_line('ERR ' + str(code) + ' ' + str(ERRORS[code]))
@@ -139,6 +145,15 @@ def handle_quit(args, user):
 
     user.active = False
 
+def serve_client(conn, addr):
+    user = User(conn, addr)
+    try:
+        ingest_lines(user)
+    except OSError:
+        pass
+    finally:
+        conn.close()
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--host', default='0.0.0.0')
@@ -150,17 +165,15 @@ def main():
     sock.bind((args.host, args.port))
     sock.listen(10)
 
-    while True:
-        conn, addr = sock.accept()
-        user = User(conn, addr)
-        print('connected:', addr)
-        try:
-            ingest_lines(user)
-        except (OSError):
-            pass
-        finally:
-            print('disconnected:', addr)
-            conn.close()
+    try:
+        while True:
+            conn, addr = sock.accept()
+            user = User(conn, addr)
+            threading.Thread(target=serve_client, args=(conn, addr), daemon=True).start()
+    except (KeyboardInterrupt):
+        pass
+    finally:
+        sock.close()
 
 if __name__ == '__main__':
     main()

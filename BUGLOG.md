@@ -31,3 +31,11 @@ Exception handling too narrow
 Broaden the exception handling scope
 ### How I found it
 Manual testing
+
+## Concurrency issues
+### Cause
+No multithreading for individual or multiple users
+### Fix
+Give each user their own thread
+### How I found it
+Referencing the provided starter_server.py file and the helper document
