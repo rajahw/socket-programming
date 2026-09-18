@@ -2,13 +2,14 @@ import socket
 import argparse
 import re
 import threading
+import traceback
 
 ERRORS = {
     100: 'Unknown command',
     101: 'Malformed or missing arguments (includes an illegal nickname)',
     102: 'Nickname already taken',
     103: 'Command requires a nickname and none is set',
-    104: 'No such user', #For PMs
+    104: 'No such user',
     105: 'Line exceeds 512 bytes'
 }
 
@@ -22,6 +23,7 @@ class User:
         self.nickname = None
         self.buffer = b''
         self.active = True
+        self.discarding = False
         self.send_lock = threading.Lock()
  
     def send_line(self, text):
@@ -52,7 +54,15 @@ def ingest_lines(user):
         if not chunk:
             break
         user.buffer += chunk
-        
+
+        if user.discarding:
+            if b'\n' in user.buffer:
+                _, user.buffer = user.buffer.split(b'\n', 1)
+                user.discarding = False
+            else:
+                user.buffer = b''
+                continue
+
         while b'\n' in user.buffer:
             raw, user.buffer = user.buffer.split(b'\n', 1)
             line = raw.rstrip(b'\r').decode('utf-8', errors='replace').strip()
@@ -61,10 +71,14 @@ def ingest_lines(user):
                 if not user.active:
                     return
 
+        if len(user.buffer) > 512:
+            user.send_error(105)
+            user.buffer = b''
+            user.discarding = True
+
 def handle_line(line, user):
     if len(line.encode('utf-8')) > 512:
         user.send_error(105)
-        user.buffer=b''
         return
 
     split = line.split()
@@ -93,18 +107,28 @@ def handle_nick(args, user):
         user.send_error(101)
         return
 
+    taken = False
+
     with users_lock:
         if args[0] in users:
-            user.send_error(102)
-            return
+            taken = True
+        else:
+            if user.nickname:
+                users.pop(user.nickname, None)
 
-        user.nickname = args[0]
+            user.nickname = args[0]
 
-        users[user.nickname] = user
+            users[user.nickname] = user
 
-    broadcast(f'INFO {user.nickname} joined. ({len(users)} online)')
+            online = len(users)
+
+    if taken:
+        user.send_error(102)
+        return
 
     user.send_success('NICK')
+
+    broadcast(f'INFO {user.nickname} joined. ({online} online)', exclude=user)
 
 def handle_msg(args, user):
     if user.nickname is None:
@@ -182,12 +206,13 @@ def serve_user(conn, addr):
     try:
         ingest_lines(user)
     except Exception:
-        pass
+        traceback.print_exc()
     finally:
         if user.nickname:
             with users_lock:
-                broadcast(f'INFO {user.nickname} left. ({len(users) -1} online)')
                 users.pop(user.nickname, None)
+                online = len(users)
+            broadcast(f'INFO {user.nickname} left. ({online} online)')
         conn.close()
 
 def main():
