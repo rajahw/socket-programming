@@ -49,7 +49,7 @@ def handle_line(line, user):
     split = line.split()
     if split:
         verb = split[0].upper()
-        args = split.copy().remove(verb)
+        args = split[1:]
 
         match verb:
             case 'NICK':
@@ -76,10 +76,10 @@ def handle_nick(args, user):
         user.send_error(102)
         return
 
-    nickname = args[0]
+    user.nickname = args[0]
 
 def handle_msg(args, user):
-    text = args.join()
+    text = ' '.join(args)
 
 def handle_pm(args, user):
     if not len(args) > 1:
@@ -90,7 +90,7 @@ def handle_pm(args, user):
         user.send_error(104)
         return
 
-    text = args.copy().remove(args[0]).join()
+    text = ' '.join(args[1:])
 
 def handle_who(args, user):
     if not len(args) == 0:
