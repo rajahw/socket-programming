@@ -24,10 +24,3 @@ Update logic
 ### How I found it
 A sweeping inspection of conditional logic throughout the file
 
-## Loud errors when closing terminal 2
-### Cause
-Exception handling too narrow
-### Fix
-Broaden the exception handling scope
-### How I found it
-Manual testing

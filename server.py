@@ -39,7 +39,7 @@ def ingest_lines(user):
             raw, user.buffer = user.buffer.split(b'\n', 1)
             line = raw.rstrip(b'\r').decode('utf-8', errors='replace').strip()
             if line:
-                handle_line(line)
+                handle_line(line, user)
 
 def handle_line(line, user):
     if len(line.encode('utf-8')) > 512:
@@ -79,6 +79,10 @@ def handle_nick(args, user):
     user.nickname = args[0]
 
 def handle_msg(args, user):
+    if user.nickname is None:
+        user.send_error(103)
+        return
+
     text = ' '.join(args)
 
 def handle_pm(args, user):
@@ -90,11 +94,19 @@ def handle_pm(args, user):
         user.send_error(104)
         return
 
+    if user.nickname is None:
+        user.send_error(103)
+        return
+
     text = ' '.join(args[1:])
 
 def handle_who(args, user):
     if not len(args) == 0:
         user.send_error(101)
+        return
+
+    if user.nickname is None:
+        user.send_error(103)
         return
 
     print('users') # print user list (Server side)
@@ -103,6 +115,10 @@ def handle_quit(args, user):
     if not len(args) == 0:
         user.send_error(101)
         return
+
+    if user.nickname is None:
+            user.send_error(103)
+            return
 
     print('quit') #disconnect from server
 
@@ -118,14 +134,13 @@ def main():
     sock.bind((args.host, args.port))
     sock.listen(10)
 
-    user = User()
-
     while True:
         conn, addr = sock.accept()
+        user = User(conn, addr)
         print('connected:', addr)
         try:
             ingest_lines(user)
-        except (OSError):
+        except (ConnectionResetError):
             pass
         finally:
             print('disconnected:', addr)
