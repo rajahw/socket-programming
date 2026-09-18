@@ -39,7 +39,7 @@ def ingest_lines(user):
             raw, user.buffer = user.buffer.split(b'\n', 1)
             line = raw.rstrip(b'\r').decode('utf-8', errors='replace').strip()
             if line:
-                user.handle_line(line)
+                handle_line(line)
 
 def handle_line(line, user):
     if len(line.encode('utf-8')) > 512:
@@ -68,7 +68,7 @@ def handle_line(line, user):
         user.send_error(100)
 
 def handle_nick(args, user):
-    if not len(args) == 1 or not re.fullmatch('[A-Za-z0-9_]', args[0]) or not len(args[0]) > 0 and len(args[0])<= 16:
+    if not len(args) == 1 or not re.fullmatch('[A-Za-z0-9_]+', args[0]) or not (len(args[0]) > 0 and len(args[0])<= 16):
         user.send_error(101)
         return
 
@@ -118,14 +118,14 @@ def main():
     sock.bind((args.host, args.port))
     sock.listen(10)
 
-    ingest_lines
+    user = User()
 
     while True:
         conn, addr = sock.accept()
         print('connected:', addr)
         try:
-            ingest_lines(conn)
-        except (ConnectionResetError):
+            ingest_lines(user)
+        except (OSError):
             pass
         finally:
             print('disconnected:', addr)
