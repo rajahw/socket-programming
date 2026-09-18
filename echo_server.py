@@ -1,6 +1,6 @@
 import socket
 
-host = "0.0.0.0"
+host = '0.0.0.0'
 port = 5050
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -11,7 +11,7 @@ print('Socket listening on host', host, 'and port', port)
 
 while True:
     conn, addr = sock.accept()
-    print("connected:", addr)
+    print('connected:', addr)
     try:
         while conn:
             data = conn.recv(512)
@@ -21,5 +21,5 @@ while True:
     except (ConnectionResetError):
         pass
     finally:
-        print("disconnected:", addr)
+        print('disconnected:', addr)
         conn.close()
