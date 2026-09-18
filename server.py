@@ -44,10 +44,13 @@ def ingest_lines(user):
             line = raw.rstrip(b'\r').decode('utf-8', errors='replace').strip()
             if line:
                 handle_line(line, user)
+                if not user.active:
+                    return
 
 def handle_line(line, user):
     if len(line.encode('utf-8')) > 512:
         user.send_error(105)
+        user.buffer=b''
         return
 
     split = line.split()
@@ -132,10 +135,9 @@ def handle_quit(args, user):
         user.send_error(103)
         return
 
-    user.active = False
-
     user.send_success('QUIT')
 
+    user.active = False
 
 def main():
     parser = argparse.ArgumentParser()
